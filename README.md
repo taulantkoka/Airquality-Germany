@@ -1,4 +1,4 @@
-# Airquality-Hessen
+# Airquality-Germany
 
 **Do diesel bans actually work? A data-driven analysis of 25 years of German air quality resulting from an afternoons worth of free time.**
 
