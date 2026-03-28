@@ -1,0 +1,46 @@
+{
+    "_info": "HLNUG Hessen air quality station registry. Source: HLNUG Jahreskurzbericht 2022 & Luftreinhalteplan Rhein-Main. Full map: https://www.hlnug.de/themen/luft/luftqualitaet/luftmessnetz",
+
+    "DEHE020": {"name": "Darmstadt",                     "city": "Darmstadt",      "type": "urban background"},
+    "DEHE040": {"name": "Darmstadt-Hügelstraße",         "city": "Darmstadt",      "type": "traffic"},
+
+    "DEHE001": {"name": "Frankfurt-Friedb. Landstr.",    "city": "Frankfurt",      "type": "traffic"},
+    "DEHE005": {"name": "Frankfurt-Höchst",              "city": "Frankfurt",      "type": "urban background"},
+    "DEHE008": {"name": "Frankfurt-Ost",                 "city": "Frankfurt",      "type": "urban background"},
+    "DEHE161": {"name": "Flörsheim",                     "city": "Flörsheim",      "type": "urban background"},
+
+    "DEHE010": {"name": "Wiesbaden-Ringkirche",          "city": "Wiesbaden",      "type": "traffic"},
+    "DEHE011": {"name": "Wiesbaden-Süd",                 "city": "Wiesbaden",      "type": "urban background"},
+    "DEHE037": {"name": "Wiesbaden-Schiersteiner Str.",  "city": "Wiesbaden",      "type": "traffic"},
+
+    "DEHE012": {"name": "Kassel-Fünffensterstr.",        "city": "Kassel",         "type": "traffic"},
+    "DEHE013": {"name": "Kassel-Mitte",                  "city": "Kassel",         "type": "urban background"},
+
+    "DEHE044": {"name": "Limburg",                       "city": "Limburg",        "type": "traffic"},
+    "DEHE046": {"name": "Limburg-Schiede",               "city": "Limburg",        "type": "traffic"},
+
+    "DEHE030": {"name": "Marburg",                       "city": "Marburg",        "type": "urban background"},
+    "DEHE035": {"name": "Gießen-Westanlage",             "city": "Gießen",         "type": "traffic"},
+    "DEHE027": {"name": "Linden",                        "city": "Linden",         "type": "rural background"},
+    "DEHE032": {"name": "Wetzlar",                       "city": "Wetzlar",        "type": "urban background"},
+
+    "DEHE041": {"name": "Hanau",                         "city": "Hanau",          "type": "urban background"},
+    "DEHE042": {"name": "Offenbach-Untere Grenzstr.",    "city": "Offenbach",      "type": "traffic"},
+    "DEHE048": {"name": "Neu-Isenburg",                  "city": "Neu-Isenburg",   "type": "urban background"},
+    "DEHE036": {"name": "Raunheim",                      "city": "Raunheim",       "type": "urban background"},
+
+    "DEHE017": {"name": "Riedstadt",                     "city": "Riedstadt",      "type": "rural background"},
+    "DEHE039": {"name": "Heppenheim-Lehrstr.",           "city": "Heppenheim",     "type": "traffic"},
+    "DEHE029": {"name": "Michelstadt",                   "city": "Michelstadt",    "type": "urban background"},
+    "DEHE028": {"name": "Fürth/Odenwald",                "city": "Fürth",          "type": "rural background"},
+
+    "DEHE038": {"name": "Fulda-Petersberger Str.",       "city": "Fulda",          "type": "traffic"},
+    "DEHE047": {"name": "Fulda-Mitte",                   "city": "Fulda",          "type": "urban background"},
+    "DEHE031": {"name": "Witzenhausen",                  "city": "Witzenhausen",   "type": "rural background"},
+    "DEHE045": {"name": "Zierenberg",                    "city": "Zierenberg",     "type": "rural background"},
+
+    "DEHE024": {"name": "Kleiner Feldberg",              "city": "Kl. Feldberg",   "type": "rural background"},
+    "DEHE033": {"name": "Spessart",                      "city": "Spessart",       "type": "rural background"},
+    "DEHE034": {"name": "Wasserkuppe",                   "city": "Wasserkuppe",    "type": "rural background"},
+    "DEHE026": {"name": "Kellerwald",                    "city": "Kellerwald",     "type": "rural background"}
+}

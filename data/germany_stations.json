@@ -1,0 +1,41 @@
+{
+    "_info": "German air quality stations for cross-city diesel ban comparison. Sources: HLNUG, LUBW, LfU Bayern, HCU Hamburg, Senate Berlin. Station codes: DE + state code + number.",
+    "_diesel_ban_cities": "Stuttgart (Jan 2019), Darmstadt (Jun 2019), Munich (Feb 2023), Hamburg (Jun 2018, lifted Sep 2023), Berlin (Nov 2019, lifted 2021/22)",
+    "_no_ban_cities": "Frankfurt (speed limits instead), Wiesbaden, Kassel, Köln, Düsseldorf, Essen, Hannover",
+
+    "DEHE020": {"name": "Darmstadt",                   "city": "Darmstadt",    "state": "HE", "type": "urban background", "diesel_ban": true,  "ban_date": "2019-06-01"},
+    "DEHE040": {"name": "Darmstadt-Hügelstraße",       "city": "Darmstadt",    "state": "HE", "type": "traffic",          "diesel_ban": true,  "ban_date": "2019-06-01"},
+
+    "DEHE001": {"name": "Frankfurt-Friedb. Landstr.",  "city": "Frankfurt",    "state": "HE", "type": "traffic",          "diesel_ban": false},
+    "DEHE005": {"name": "Frankfurt-Höchst",            "city": "Frankfurt",    "state": "HE", "type": "urban background", "diesel_ban": false},
+    "DEHE008": {"name": "Frankfurt-Ost",               "city": "Frankfurt",    "state": "HE", "type": "urban background", "diesel_ban": false},
+
+    "DEHE010": {"name": "Wiesbaden-Ringkirche",        "city": "Wiesbaden",    "state": "HE", "type": "traffic",          "diesel_ban": false},
+    "DEHE011": {"name": "Wiesbaden-Süd",               "city": "Wiesbaden",    "state": "HE", "type": "urban background", "diesel_ban": false},
+
+    "DEHE012": {"name": "Kassel-Fünffensterstr.",      "city": "Kassel",       "state": "HE", "type": "traffic",          "diesel_ban": false},
+    "DEHE013": {"name": "Kassel-Mitte",                "city": "Kassel",       "state": "HE", "type": "urban background", "diesel_ban": false},
+
+    "DEBW004": {"name": "Stuttgart Am Neckartor",      "city": "Stuttgart",    "state": "BW", "type": "traffic",          "diesel_ban": true,  "ban_date": "2019-01-01"},
+    "DEBW099": {"name": "Stuttgart-Bad Cannstatt",     "city": "Stuttgart",    "state": "BW", "type": "urban background", "diesel_ban": true,  "ban_date": "2019-01-01"},
+
+    "DEBY039": {"name": "München-Stachus",             "city": "München",      "state": "BY", "type": "traffic",          "diesel_ban": true,  "ban_date": "2023-02-01"},
+    "DEBY005": {"name": "München-Lothstraße",          "city": "München",      "state": "BY", "type": "urban background", "diesel_ban": true,  "ban_date": "2023-02-01"},
+
+    "DEHH021": {"name": "Hamburg-Stresemannstr.",      "city": "Hamburg",      "state": "HH", "type": "traffic",          "diesel_ban": "lifted", "ban_date": "2018-06-01", "ban_lifted": "2023-09-13"},
+    "DEHH026": {"name": "Hamburg-Sternschanze",        "city": "Hamburg",      "state": "HH", "type": "urban background", "diesel_ban": false},
+
+    "DEBE056": {"name": "Berlin-Leipziger Str.",       "city": "Berlin",       "state": "BE", "type": "traffic",          "diesel_ban": "lifted", "ban_date": "2019-11-01", "ban_lifted": "2022-01-01"},
+    "DEBE010": {"name": "Berlin-Neukölln",             "city": "Berlin",       "state": "BE", "type": "urban background", "diesel_ban": false},
+
+    "DENW207": {"name": "Köln-Clevischer Ring",        "city": "Köln",         "state": "NW", "type": "traffic",          "diesel_ban": false},
+    "DENW053": {"name": "Köln-Chorweiler",             "city": "Köln",         "state": "NW", "type": "urban background", "diesel_ban": false},
+
+    "DENW073": {"name": "Düsseldorf-Corneliusstr.",    "city": "Düsseldorf",   "state": "NW", "type": "traffic",          "diesel_ban": false},
+    "DENW063": {"name": "Düsseldorf-Lörick",           "city": "Düsseldorf",   "state": "NW", "type": "urban background", "diesel_ban": false},
+
+    "DENW094": {"name": "Essen-Gladbecker Str.",       "city": "Essen",        "state": "NW", "type": "traffic",          "diesel_ban": false},
+
+    "DENI060": {"name": "Hannover-Göttinger Str.",     "city": "Hannover",     "state": "NI", "type": "traffic",          "diesel_ban": false},
+    "DENI063": {"name": "Hannover-Linden",             "city": "Hannover",     "state": "NI", "type": "urban background", "diesel_ban": false}
+}
