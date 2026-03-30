@@ -1,7 +1,7 @@
 # Do Diesel Bans Actually Work?
 ## A Data-Driven Analysis of 25 Years of German Air Quality
 
-**Taulant Koka · March 2026 · [GitHub: Airquality-Hessen](https://github.com/)**
+**Taulant Koka · March 2026 · [GitHub: Airquality-Germany](https://github.com/)**
 
 *An open-source, fully reproducible analysis using public APIs from the German Federal Environment Agency (UBA), DWD weather service, and city-level open data.*
 
