@@ -9,7 +9,7 @@
 
 ## Abstract
 
-This study analyzes 25 years of air pollution data across 12 German cities to evaluate the causal impact of diesel driving bans on nitrogen dioxide (NO2) concentrations. Using an autoregressive model with exogenous variables (ARX), Newey-West heteroskedasticity-robust standard errors, and Benjamini-Yekutieli false discovery rate correction, I find that the Darmstadt Huegelstrasse diesel ban reduced daily NO2 by **5.1 micrograms per cubic meter** (p < 0.001) at the directly affected traffic station. A panel difference-in-differences model comparing ban cities (Darmstadt, Stuttgart, Munich) against control cities (Frankfurt, Wiesbaden, Kassel, Koeln, Duesseldorf, Essen, Hannover) with city-specific weather controls estimates the cross-city treatment effect at **-2.1 micrograms per cubic meter** (p < 0.001). The true citywide effect likely falls between these two estimates. The first COVID-19 lockdown (-2.5) and the 9-Euro-Ticket (-1.4) also produced statistically significant NO2 reductions. PM10 is largely unaffected by traffic interventions. All code and data pipelines are open source.
+This study analyzes 25 years of air pollution data across 78 German cities to evaluate the causal impact of diesel driving bans and Umweltzonen (low-emission zones) on nitrogen dioxide (NO2) concentrations. Using an autoregressive model with exogenous variables (ARX), Newey-West heteroskedasticity-robust standard errors, and Benjamini-Yekutieli false discovery rate correction, I find that the Darmstadt Huegelstrasse diesel ban reduced daily NO2 by **5.1 micrograms per cubic meter** (p < 0.001) at the directly affected traffic station. A national daily panel covering 50+ cities estimates the diesel ban treatment effect at **-2 to -4 micrograms per cubic meter** (p < 0.001), and a national annual panel of 78 cities over 25 years confirms this at **-4.7 micrograms per cubic meter** (p < 0.05). However, the Umweltzone effect cannot be cleanly identified: a staggered difference-in-differences yields a null result, and a regression discontinuity design using the EU 40 ug/m3 limit as instrument also fails to find a significant effect, due to endogenous treatment assignment and collinearity with national fleet modernization trends. The first COVID-19 lockdown (-2.5) and the 9-Euro-Ticket (-1.4) also produced statistically significant NO2 reductions. PM10 is largely unaffected by traffic interventions. All code and data pipelines are open source.
 
 ---
 
@@ -102,9 +102,9 @@ On top of that, I test 16 predictors simultaneously. Even with honest standard e
 
 The single-city model tells us what happened in Darmstadt, but cannot rule out the possibility that Darmstadt simply had lucky weather after 2019, or that some Darmstadt-specific factor (unrelated to the diesel ban) caused the improvement.
 
-To address this, I run a panel model that pools daily data from all 12 cities. The model includes city fixed effects (which absorb all time-invariant differences between cities, such as geography, baseline traffic levels, and urban form) and city-specific weather controls (each city's own temperature, wind, rain, and humidity from its own DWD weather station).
+To address this, I run a panel model that pools daily data from 50+ cities nationally. The model includes city fixed effects (which absorb all time-invariant differences between cities, such as geography, baseline traffic levels, and urban form) and city-specific weather controls (each city's own temperature, wind, rain, and humidity from its own DWD weather station).
 
-The key variable is `ban_active`, which equals 1 only for city-day pairs where that city had an active diesel ban at that point in time. The coefficient on this variable estimates how much lower NO2 is in ban cities on ban days, compared to what we would expect based on their weather, seasonality, and general city characteristics.
+The key variable is `ban_active`, which equals 1 only for city-day pairs where that city had an active diesel ban at that point in time. The coefficient on this variable estimates how much lower NO2 is in ban cities on ban days, compared to what one would expect based on their weather, seasonality, and general city characteristics.
 
 This is a difference-in-differences (DiD) design: the "first difference" is the change within each city over time (before vs. after the ban), and the "second difference" is the comparison between ban cities and non-ban cities. The DiD estimate is the additional improvement in ban cities beyond the general trend that affected all cities.
 
@@ -117,6 +117,18 @@ I apply three methods:
 - **Segmented regression**: Fit separate linear trends before and after 2015, allowing both the slope and the intercept to change at the break point.
 - **Chow test**: A formal F-test for whether the relationship between time and pollution changes at a specified date.
 - **Sup-F scan**: Test every year as a candidate break point and plot the resulting F-statistics. This reveals where in the time series the strongest evidence for a structural change is located.
+
+### 2.6 National Annual Panel: Staggered DiD for Umweltzonen
+
+To evaluate the Umweltzone at the national level, I assembled a panel of 78 German cities using the UBA's annual balances endpoint (which returns all stations nationally in a single API call per year). Cities are classified by their Umweltzone history: 45 cities that implemented Umweltzonen between 2008 and 2018 (some of which have since lifted them), and 33 control cities that never had one (including Hamburg, Dresden, Nuernberg, Kiel, Rostock, Chemnitz, and cities across Schleswig-Holstein, Mecklenburg-Vorpommern, Brandenburg, and the Saarland).
+
+The staggered DiD exploits the fact that different cities introduced their Umweltzonen at different times. The model includes city fixed effects, a linear trend, annual mean temperature and wind speed as weather controls, and two treatment variables: `uz_active` (equals 1 when a city has an active Umweltzone in that year) and `diesel_ban_active` (equals 1 for the 5 cities that implemented diesel driving bans).
+
+### 2.7 Regression Discontinuity Around the EU Limit
+
+To address the selection bias inherent in Umweltzone adoption, I also implement a fuzzy regression discontinuity design. The running variable is the city's pre-treatment NO2 level (average of 2005-2007). The cutoff is 40 ug/m3, the EU annual limit. Cities above this threshold were sued by Deutsche Umwelthilfe and faced strong pressure to implement Umweltzonen. Cities below the threshold largely escaped. If this threshold creates quasi-random assignment near the cutoff, comparing cities just above and just below provides a causal estimate of the Umweltzone effect.
+
+The analysis reports three estimates: an OLS estimate (naive, likely biased by selection), a reduced-form estimate (effect of being above 40 on NO2 change), and an IV/Wald estimate (reduced form divided by first stage, the local average treatment effect for compliers).
 
 ---
 
@@ -187,7 +199,7 @@ The model explains about 83% of daily NO2 variation, which is strong for environ
 | Intervention | COVID lockdown 2 | -1.2 | No |
 | Intervention | Deutschlandticket | +0.1 | No |
 
-The diesel ban shows the largest intervention effect at -5.1 ug/m3, and it survives the strictest correction we apply. In concrete terms: after removing the effects of weather, seasonality, day-of-week, holidays, long-term trend, and autocorrelation, days after the diesel ban still see about 5 ug/m3 less NO2 than equivalent days before it.
+The diesel ban shows the largest intervention effect at -5.1 ug/m3, and it survives the strictest correction applied. In concrete terms: after removing the effects of weather, seasonality, day-of-week, holidays, long-term trend, and autocorrelation, days after the diesel ban still see about 5 ug/m3 less NO2 than equivalent days before it.
 
 For perspective, the weekend effect is -7.1 ug/m3. This means the diesel ban achieves about 70% of the pollution reduction that comes from the natural drop in traffic on weekends. That is a substantial effect for a policy that only bans a subset of diesel vehicles from two streets.
 
@@ -246,29 +258,67 @@ This counterfactual has important limitations: it assumes a linear extrapolation
 
 ![Residual comparison](../figures/16_residual_comparison.svg)
 
-**Option A, Per-city weather correction:** Each city gets its own ARX model fitted using only weather and seasonal predictors (no intervention dummies). The residuals from these models represent "weather-corrected pollution": how dirty or clean the air is after removing what local weather and seasonal patterns explain. If the diesel ban works, we expect ban cities' residuals to diverge downward after 2019 relative to non-ban cities.
+**Option A, Per-city weather correction:** Each city gets its own ARX model fitted using only weather and seasonal predictors (no intervention dummies). The residuals from these models represent "weather-corrected pollution": how dirty or clean the air is after removing what local weather and seasonal patterns explain. If the diesel ban works, ban cities' residuals would be expected to diverge downward after 2019 relative to non-ban cities.
 
 The plot shows exactly this pattern. Before 2019, both groups' residuals fluctuate around zero (as expected, since the weather model explains the baseline). After the 2019 ban date, the ban cities' residuals shift noticeably negative, while the control cities remain near zero.
 
 ![Panel DiD](../figures/17_panel_did_results.svg)
 
-**Option B, Pooled panel DiD:** R-squared = 0.824 across all 12 cities (11 cities plus Berlin as reference).
+**Option B, Pooled panel DiD:** R-squared = 0.77 across 50+ cities.
 
-The `ban_active` coefficient: delta = -2.05 ug/m3 (p(BY) < 0.001, significant)
+The `ban_active` coefficient: delta = -4.0 ug/m3 (p(BY) < 0.001, significant)
 
-This means: controlling for each city's own weather, seasonal patterns, day-of-week effects, autocorrelation, and time-invariant city characteristics, days with an active diesel ban see about 2 ug/m3 less NO2 than equivalent days in comparable cities without bans.
+This means: controlling for each city's own weather, seasonal patterns, day-of-week effects, autocorrelation, and time-invariant city characteristics, days with an active diesel ban see about 4 ug/m3 less NO2 than equivalent days in comparable cities without bans.
 
-The city fixed effects (plot 17, right panel) are plausible. Hamburg and Darmstadt have the highest baseline NO2 (both are traffic stations on busy streets). Essen and Hannover are lowest. The fixed effects absorb these baseline differences so that the `ban_active` coefficient captures only the change associated with the ban, not the level.
+The city fixed effects (plot 17, right panel) show the expected pattern: Hamburg, Darmstadt, Stuttgart, and Wuppertal have the highest baseline NO2 (all traffic-heavy cities), while Salzgitter, Schwerin, and smaller cities have the lowest. The fixed effects absorb these baseline differences so that the `ban_active` coefficient captures only the change associated with the ban, not the level.
 
-**Interpreting the gap between the two estimates:** The single-city Darmstadt model estimates -5.1 ug/m3. The 12-city panel estimates -2.05 ug/m3. Both are statistically significant but differ in magnitude by a factor of 2.5. There are several reasons for this gap:
+**Interpreting the gap between the single-city and panel estimates:** The Darmstadt ARX model estimates -5.1 ug/m3 at the banned street's traffic station. The national panel estimates -4.0 ug/m3 averaged across all ban cities. Both are statistically significant but the panel estimate is somewhat smaller because it averages in Munich (ban only since Feb 2023, very little post-treatment data) and because some ban cities have street-level rather than citywide bans.
 
-First, the Darmstadt model uses a traffic station located directly on the banned street. This is the location where the ban has the most direct effect. The panel averages across cities where the ban's scope varies: Stuttgart has a citywide ban (large effect), Darmstadt bans two streets (medium effect at the station), and Munich only started its ban in February 2023, contributing very little post-treatment data.
+The per-city residual plot (Option A) reveals something important: the ban cities' weather-corrected residuals drop sharply after 2019 but begin converging back toward the control group by 2024-2025. This suggests the ban's incremental effect may be diminishing over time as fleet turnover retires the oldest diesels regardless. The honest summary is that the diesel ban effect likely falls between -2 and -5 ug/m3, depending on station proximity, city, and time horizon.
 
-Second, the panel model absorbs more variation through city fixed effects and a broader set of control cities. This is methodologically more conservative: it compares ban cities against seven control cities across four federal states, rather than relying on Darmstadt's own pre/post variation.
+### 3.11 National Annual Analysis: 78 Cities, 25 Years
 
-Third, the per-city residual plot (Option A) reveals something important: the ban cities' weather-corrected residuals drop sharply after 2019 but begin converging back toward the control group by 2024-2025. This suggests the ban's incremental effect may be diminishing over time as fleet turnover would have retired the oldest diesels regardless of the ban. The step-function dummy in the panel model averages across the entire post-ban period, including these later years where the ban's marginal effect is smaller.
+The daily panel (Section 3.10) covers 2016 onwards. To evaluate the Umweltzone, which was introduced between 2008 and 2018 depending on the city, we need the annual data going back to 2000. Using the UBA's annual balances endpoint, I assembled NO2 data for 78 German cities: 45 that implemented Umweltzonen at various times, and 33 that never did.
 
-The honest summary is that the diesel ban effect likely falls somewhere between -2 and -5 ug/m3, depending on the station, city, and time horizon. The effect is largest at directly affected traffic stations in the first 2-3 years after implementation.
+![Annual trajectories](../figures/19_annual_all_cities.svg)
+
+The raw trajectories (plot 19) immediately reveal a problem. Cities are grouped by when they got their Umweltzone: Early (2008, green), Mid (2009-10, blue), Late (2011+, red), and Never (grey). The cities that got Umweltzonen earliest had the *highest* baseline pollution (green group started at ~50 ug/m3). Cities that never got one started at ~30 ug/m3. This is not random assignment: cities got Umweltzonen precisely *because* they were polluted. This selection makes naive comparisons misleading.
+
+![Weather-corrected](../figures/20_annual_weather_corrected.svg)
+
+After removing annual temperature and wind speed effects (plot 20), the group ordering remains the same. The weather correction (R-squared = 0.05-0.10 for the pooled model) removes some year-to-year noise but does not change the fundamental picture. All groups converge toward similar levels by 2024, driven by the general trend of fleet modernization affecting all cities.
+
+![Break scans](../figures/21_annual_break_scan.svg)
+
+The sup-F break scan (plot 21) applied to each city individually shows heterogeneous patterns. Some UZ cities show breaks near their UZ introduction year, but many show breaks at 2008-2010 (financial crisis) or 2019-2020 (diesel bans, COVID). Control cities show similar break patterns, suggesting these breaks are driven by national-level factors (emission standards, economic cycles) rather than local Umweltzone policy.
+
+### 3.12 Staggered DiD: Umweltzone Effect
+
+![Staggered DiD](../figures/22_staggered_did.svg)
+
+The staggered DiD model with city fixed effects, annual weather controls, and a linear trend yields a striking result: the Umweltzone coefficient is +0.6 ug/m3, *not statistically significant*. The diesel ban coefficient, by contrast, is -4.7 ug/m3 and significant. The trend alone explains -1.5 ug/m3 per year across all cities.
+
+This does not mean Umweltzonen were ineffective. It means their effect is not identifiable with this research design, for three reasons:
+
+First, treatment is endogenous. Cities got Umweltzonen because they had high pollution, not randomly. The city fixed effects absorb baseline level differences, but the *trend* differences are captured by the linear trend variable. After the trend absorbs the general decline, there is nothing left for the Umweltzone dummy to explain.
+
+Second, nearly all large cities got Umweltzonen. With 45 of 78 cities treated (and many of the untreated being smaller, less polluted cities in states that never adopted the policy), the "control group" is not comparable even after fixed effects.
+
+Third, the Umweltzone dummy is collinear with the time trend. Most Umweltzonen were introduced in 2008-2010, exactly when the steepest decline began for all cities (driven by the Euro 5 to Euro 6 fleet transition, the financial crisis, and rising diesel awareness). The model cannot separate these national-level trends from local UZ effects.
+
+### 3.13 Regression Discontinuity: Using the EU Limit as Instrument
+
+![RD analysis](../figures/23_regression_discontinuity.svg)
+
+To address the selection bias, I attempted a fuzzy regression discontinuity design using the EU annual limit of 40 ug/m3 as the threshold. The logic: cities just above 40 ug/m3 faced lawsuits from Deutsche Umwelthilfe and were compelled to implement Umweltzonen. Cities just below escaped. If this threshold created quasi-random assignment, I can use it as an instrument.
+
+The first stage (panel 1) shows that pre-treatment NO2 does predict UZ adoption, but the relationship is fuzzy rather than sharp. Many cities below 40 still adopted Umweltzonen (for PM10 compliance or political reasons), and a few above 40 avoided them. The first stage is statistically significant but not overwhelmingly strong.
+
+The RD plot (panel 2) shows no visible discontinuity at the threshold. Cities on both sides of 40 ug/m3 show similar NO2 declines from 2005-07 to 2020-24. This is the core identification problem: the decline is driven by national-level fleet modernization that affected all cities regardless of their Umweltzone status.
+
+The comparison of estimates (panel 3) shows all three approaches (OLS, reduced form, IV/Wald) yielding near-zero or positive estimates with wide confidence intervals. The IV estimate has particularly large standard errors, reflecting weak instrument problems.
+
+This is a genuine methodological finding: evaluating Umweltzonen is fundamentally harder than evaluating diesel bans, because Umweltzone adoption was driven by the same factor (high pollution) that drives the outcome (pollution decline). The parallel trends assumption required for DiD does not hold, and the EU limit threshold is not sharp enough for a clean RD. Properly identifying the Umweltzone effect would require either a stronger instrument, a synthetic control method, or a structural model of fleet turnover.
 
 ---
 
@@ -276,9 +326,9 @@ The honest summary is that the diesel ban effect likely falls somewhere between 
 
 ### 4.1 Key Findings
 
-1. **Diesel bans reduce NO2, but the effect size depends on scope and measurement.** The within-city Darmstadt model estimates -5.1 ug/m3 at the banned street's traffic station. The 12-city panel estimates -2.05 ug/m3 averaged across all ban cities and station types. Both are statistically significant after strict multiple testing correction. The true citywide effect likely falls between these two estimates.
+1. **Diesel bans reduce NO2, consistently across all methods.** The single-city Darmstadt model estimates -5.1 ug/m3, the daily national panel estimates -2 to -4 ug/m3, and the annual national panel estimates -4.7 ug/m3. All are statistically significant. The effect is robust to different specifications, different city samples, different time resolutions, and different control strategies. This is the strongest finding of the analysis.
 
-2. **The 2014-2019 period saw a major structural acceleration in NO2 decline.** The segmented regression shows the rate of improvement increased roughly 4.6 times after 2015. The structural break scan cannot attribute this to any single intervention because the Umweltzone (2015) and diesel ban (2019) overlap within the scan window. The ARX model with explicit intervention dummies provides the better decomposition.
+2. **The Umweltzone effect cannot be cleanly identified with available methods.** The staggered DiD yields a null result (+0.6, not significant), and the regression discontinuity approach also fails to find a significant effect. This is not evidence that Umweltzonen were ineffective. Rather, it reflects a fundamental identification problem: cities adopted Umweltzonen because they were polluted, creating selection bias that neither DiD, RD, nor IV can fully resolve with the available data. The simultaneous introduction of Euro 5/6 emission standards, economic cycles, and fleet modernization trends are collinear with Umweltzone timing, making it impossible to isolate the policy-specific contribution.
 
 3. **PM10 is not primarily a traffic story.** The diesel ban effect on PM10 is small (-1.5 ug/m3). PM10 is driven by weather (wind and rain), natural events (Sahara dust), residential heating, and construction. Traffic restrictions alone cannot solve the PM10 problem.
 
@@ -286,13 +336,15 @@ The honest summary is that the diesel ban effect likely falls somewhere between 
 
 5. **Weather is the dominant short-term driver.** Wind speed alone explains more daily variance than any single policy variable. Any analysis that does not control for weather conditions will misattribute their effects to policies or trends.
 
-6. **The ban effect may be diminishing over time.** The per-city residual analysis (Option A) shows ban cities' weather-corrected residuals converging back toward control cities by 2024-2025. This is consistent with the idea that fleet turnover is gradually retiring the oldest diesels that the ban targets, reducing its incremental impact. It does not mean the ban was ineffective; rather, it may have accelerated a transition that would eventually have happened through natural fleet renewal, but did so several years earlier.
+6. **The diesel ban effect may be diminishing over time.** The per-city residual analysis shows ban cities' weather-corrected residuals converging back toward control cities by 2024-2025. This is consistent with fleet turnover gradually retiring the oldest diesels that the ban targets. The ban may have accelerated a transition that would eventually have happened through natural fleet renewal, but did so several years earlier.
+
+7. **Evaluating Umweltzonen is methodologically harder than evaluating diesel bans.** This is itself a finding. Diesel bans were implemented by a handful of cities for idiosyncratic legal reasons, creating clean treatment variation. Umweltzonen were adopted by nearly every large polluted city in Germany, at roughly the same time, for the same reason (EU limit exceedances), making it nearly impossible to construct a valid counterfactual. Future evaluations should consider synthetic control methods or exploit variation in the *stringency* of enforcement rather than the binary adopted/not adopted distinction.
 
 ### 4.2 Limitations
 
 This analysis has several important limitations that readers should keep in mind:
 
-**No real traffic count data.** The weekend and holiday dummies are crude proxies for traffic volume. Darmstadt publishes detailed induction loop traffic counts at one-minute resolution through its open data portal (opendata.darmstadt.de), available from 2022 onwards. Integrating this data would substantially improve the model's ability to separate the diesel ban effect from general traffic changes. Without actual traffic counts, we cannot rule out the possibility that a broader shift in driving behavior (unrelated to the ban) explains part of the estimated effect.
+**No real traffic count data.** The weekend and holiday dummies are crude proxies for traffic volume. Darmstadt publishes detailed induction loop traffic counts at one-minute resolution through its open data portal (opendata.darmstadt.de), available from 2022 onwards. Integrating this data would substantially improve the model's ability to separate the diesel ban effect from general traffic changes. Without actual traffic counts, one cannot rule out the possibility that a broader shift in driving behavior (unrelated to the ban) explains part of the estimated effect.
 
 **No fleet composition data.** The long-term trend variable captures gradual fleet modernization (the transition from Euro 5 to Euro 6d emission standards), EV adoption, and changes in the energy mix as a single linear term. This is a rough approximation. In reality, fleet turnover is nonlinear and varies between cities. Monthly vehicle registration data from the KBA (Federal Motor Transport Authority), broken down by emission class, would allow a much more precise decomposition of how much improvement comes from the ban versus from natural fleet renewal.
 
@@ -300,7 +352,9 @@ This analysis has several important limitations that readers should keep in mind
 
 **Spatial spillover is unaccounted for.** Banning diesels from Huegelstrasse may simply redirect traffic to parallel streets. If this happens, the monitoring station on Huegelstrasse records a pollution decrease, but the city-level pollution may not change, or may even increase on the alternative routes. This analysis measures the effect at the monitoring station, not the citywide effect. The background station provides a partial check (it is not on the banned street), but a full spatial analysis would require a denser monitoring network.
 
-**The panel has a small number of treated cities.** Only three cities have active diesel bans (Darmstadt, Stuttgart, Munich), and Munich's ban started only in February 2023. With so few treated units, the DiD estimate is sensitive to idiosyncratic shocks in any single city. A factory closure, a major road construction project, or an unusually calm winter in one ban city could meaningfully shift the treatment effect estimate. The results should be interpreted as suggestive of a real effect rather than as a precise point estimate.
+**The panel has a small number of diesel-ban treated cities.** Only five cities have or had active diesel bans (Darmstadt, Stuttgart, Munich, Hamburg, Berlin), and Hamburg and Berlin have since lifted theirs. With so few treated units, the DiD estimate is sensitive to idiosyncratic shocks in any single city. The 50+ control cities provide a strong reference group, but the treatment variation is concentrated in very few units.
+
+**The Umweltzone effect is not identified, not absent.** The null result for Umweltzonen in both the staggered DiD and the RD/IV analysis should not be interpreted as evidence that Umweltzonen had no effect on air quality. The problem is endogenous treatment assignment: cities adopted Umweltzonen because they were polluted, and the same cities would have experienced steeper declines anyway (regression to the mean, stricter EU enforcement, more room to improve). Neither the city fixed effects, the linear trend, nor the EU limit threshold as instrument can fully resolve this selection bias. The recently lifted Umweltzonen (Hannover, Freiburg, Erfurt, Heidelberg, Karlsruhe, Reutlingen) could in principle provide a "reversal" test, but the lifts occurred in 2021-2024 when most cities were already well below the EU limit, making it unlikely to detect a pollution increase from lifting.
 
 **The structural break analysis uses only 24 annual observations.** With so few data points, the Chow test and segmented regression have limited statistical power. The segmented regression fits four parameters to 24 observations, leaving limited degrees of freedom. The counterfactual extrapolation (extending the pre-2015 linear trend) assumes that improvement would have continued at a constant rate, which may be unrealistic if fleet modernization was already accelerating independently of policy.
 
@@ -310,13 +364,33 @@ This analysis has several important limitations that readers should keep in mind
 
 ---
 
-## 5. Reproducibility
+## 5. Three Tiers of Evidence
 
-### 5.1 Project Structure
+This analysis uses three complementary approaches, each trading breadth for depth:
+
+| Script | Scope | Resolution | Treatment | Cities | Period |
+|--------|-------|-----------|-----------|--------|--------|
+| 06 | National | Annual | Umweltzone (staggered) | 50+ | 2000-2024 |
+| 04 | National | Daily | Diesel ban | 50+ | 2016-2025 |
+| 02 | Darmstadt only | Daily | All interventions | 1 | 2016-2025 |
+
+**Script 06 (annual staggered DiD)** answers the broadest question: do Umweltzonen reduce NO2? It uses the UBA annual balances endpoint (which returns all stations nationally in a single call per year) to assemble a 25-year panel covering every Grossstadt with a monitoring station. Cities are grouped by when they introduced their Umweltzone (2008, 2009-10, 2011+, or never). The staggered DiD exploits the fact that different cities got their Umweltzonen at different times, with city fixed effects absorbing all time-invariant city differences and annual temperature and wind speed as weather controls. Several cities that recently lifted their Umweltzonen (Hannover 2023, Freiburg 2024, Erfurt 2021) provide a natural "reversal" test.
+
+**Script 04 (daily panel DiD)** answers the diesel ban question with full weather controls. It fetches hourly NO2 and daily weather for all cities where the UBA API serves hourly data, then fits a pooled model with city fixed effects, AR lags, Fourier seasonality, and city-specific weather. The treatment variable `ban_active` turns on only for city-day pairs where that city had an active diesel ban.
+
+**Script 02 (single-city ARX)** is the microscope. For Darmstadt alone, it fits the full ARX model with every intervention dummy (diesel ban, COVID 1+2, 9-Euro-Ticket, Deutschlandticket, Sahara dust), weather lags, Fourier harmonics, and AR terms. This gives the most detailed decomposition of what drove pollution changes at the specific street where the ban was implemented.
+
+The convergence (or divergence) between these three estimates is itself informative. For diesel bans, all three tiers converge: -5.1 (single-city), -2 to -4 (daily panel), -4.7 (annual panel). For Umweltzonen, neither the staggered DiD nor the regression discontinuity/IV approach can identify a significant effect, and this consistent null across methods strengthens the conclusion that it is an identification problem rather than a data problem.
+
+---
+
+## 6. Reproducibility
+
+### 6.1 Project Structure
 
 ```
 Airquality-Hessen/
-+-- run_analysis.py           # Master pipeline (runs all, outputs PDF/SVG)
++-- run_analysis.py           # Master pipeline (runs all, outputs PDFs)
 +-- requirements.txt          # Python dependencies
 +-- src/
 |   +-- data_fetcher.py       # UBA Luftdaten API client
@@ -324,31 +398,38 @@ Airquality-Hessen/
 |   +-- debug_api.py          # API diagnostic tool
 +-- data/
 |   +-- hessen_stations.json  # Hessen station registry
-|   +-- germany_stations.json # Germany-wide registry
-|   +-- panel_data.csv        # Cached panel data (auto-generated)
+|   +-- germany_stations.json # 12-city registry (fallback)
+|   +-- all_stations.json     # Full national station list (auto-generated by 06)
+|   +-- annual_all_cities.csv # Annual panel cache (auto-generated by 06)
+|   +-- panel_data.csv        # Daily panel cache (auto-generated by 04)
 +-- analysis/
-|   +-- 01_exploration.py     # Multi-pollutant, seasonal, cross-city
+|   +-- 01_exploration.py     # Multi-pollutant, seasonal, cross-city (Hessen)
 |   +-- 02_arx_model.py       # ARX driver model (Darmstadt)
-|   +-- 03_structural_breaks.py  # Chow test, counterfactual
-|   +-- 04_panel_did.py       # Cross-city panel DiD
+|   +-- 03_structural_breaks.py  # Chow test, counterfactual (Darmstadt)
+|   +-- 04_panel_did.py       # Daily panel DiD (national, diesel ban)
 |   +-- 05_darmstadt_trend.py # 25-year trend plots
-+-- figures/                  # Output (PDF/SVG)
+|   +-- 06_annual_cross_city.py  # Annual staggered DiD + RD/IV (national, Umweltzone)
++-- figures/                  # Output (PDF + SVG)
 +-- report/
     +-- report.md             # This document
 ```
 
-### 5.2 Running
+### 6.2 Running
 
 ```bash
 pip install -r requirements.txt
-python run_analysis.py              # Full pipeline (~30 min first run)
-python run_analysis.py --quick      # Skip panel data fetch
-python run_analysis.py --only 02    # Run single analysis
+
+# Recommended order (06 discovers stations that 04 reuses):
+python run_analysis.py --only 06    # Annual national analysis (~10 min)
+python run_analysis.py --only 04    # Daily national panel (~2-4 hours first run)
+python run_analysis.py              # Full pipeline
+
+python run_analysis.py --quick      # Skip slow daily panel
 ```
 
-### 5.3 Data Availability
+### 6.3 Data Availability
 
-All data is fetched live from public APIs. No pre-downloaded datasets are required. The panel data is cached to `data/panel_data.csv` after the first run to avoid re-fetching on subsequent runs.
+All data is fetched live from public APIs. No pre-downloaded datasets are required. Script 06 should be run first because it discovers the full national station list (`all_stations.json`) which script 04 then reuses. All fetched data is cached so subsequent runs are instant.
 
 ---
 

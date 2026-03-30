@@ -45,24 +45,21 @@ def _patched_savefig(self, fname, *args, **kwargs):
     """Redirect all saves to figures/ as BOTH PDF and SVG."""
     fname = str(fname)
     base = os.path.splitext(os.path.basename(fname))[0]
-    
-    # Define paths
+
     pdf_path = ROOT / "figures" / f"{base}.pdf"
     svg_path = ROOT / "figures" / f"{base}.svg"
-    
+
     kwargs.setdefault("bbox_inches", "tight")
-    
-    # Save the PDF (for your high-depth vector needs/LaTeX)
+
+    # Save PDF (vector, LaTeX-ready)
     _original_savefig(self, str(pdf_path), *args, **kwargs)
-    
-    # Save the SVG (for your Markdown report/Web)
+
+    # Save SVG (web/markdown-ready)
     _original_savefig(self, str(svg_path), format='svg', **kwargs)
-    
-    print(f"  → Saved PDF: {pdf_path.name}")
-    print(f"  → Saved SVG: {svg_path.name}")
+
+    print(f"  -> {pdf_path.name} + {svg_path.name}")
 
 plt.Figure.savefig = _patched_savefig
-
 
 # ---- Fix data_fetcher station file paths ----
 import data_fetcher
@@ -87,12 +84,15 @@ data_fetcher.HessenAirAPI.__init__ = _patched_init
 import importlib
 
 # ---- Analysis modules ----
+# Note: 06 should run before 04 because it discovers the national station
+# list (all_stations.json) that 04 reuses for its city coverage.
 ANALYSES = {
-    "01": ("Exploratory plots",         "analysis/01_exploration.py"),
-    "02": ("ARX driver model",          "analysis/02_arx_model.py"),
-    "03": ("Structural breaks",         "analysis/03_structural_breaks.py"),
-    "04": ("Panel DiD (cross-city)",    "analysis/04_panel_did.py"),
-    "05": ("Darmstadt 25-year trend",   "analysis/05_darmstadt_trend.py"),
+    "01": ("Exploratory plots",                "analysis/01_exploration.py"),
+    "02": ("ARX driver model",                 "analysis/02_arx_model.py"),
+    "03": ("Structural breaks",                "analysis/03_structural_breaks.py"),
+    "05": ("Darmstadt 25-year trend",          "analysis/05_darmstadt_trend.py"),
+    "06": ("Annual cross-city (Umweltzone)",   "analysis/06_annual_cross_city.py"),
+    "04": ("Daily panel DiD (diesel ban)",     "analysis/04_panel_did.py"),
 }
 
 
@@ -113,7 +113,10 @@ def run_script(path):
         sys.path.insert(0, script_dir)
 
     try:
-        exec(open(full_path).read(), {"__name__": "__main__"})
+        exec(open(full_path).read(), {
+            "__name__": "__main__",
+            "__file__": str(full_path)  # This tells the script where it is located
+        })
         return True
     except Exception as e:
         print(f"  ERROR: {e}")
@@ -157,7 +160,7 @@ def main():
         print(f"  {status}  {key}: {name}")
 
     # List generated figures
-    figs = sorted((ROOT / "figures").glob("*.png"))
+    figs = sorted((ROOT / "figures").glob("*.pdf"))
     if figs:
         print(f"\n  Generated {len(figs)} figures in figures/:")
         for f in figs:

@@ -42,39 +42,17 @@ sns.set_style("whitegrid")
 #  CONFIG
 # ======================================================================
 
-CACHE_FILE = Path(__name__).parent.parent / "data" / "panel_data.csv"
-REGISTRY_FILE = Path(__name__).parent.parent / "data" / "germany_stations.json"
+CACHE_FILE = Path(__file__).parent.parent / "data" / "panel_data.csv"
+STATIONS_CACHE = Path(__file__).parent.parent / "data" / "all_stations.json"
+REGISTRY_FILE = Path(__file__).parent.parent / "data" / "germany_stations.json"
 
-# City coordinates for weather fetching
-CITY_COORDS = {
-    "Darmstadt":  (49.8728, 8.6512),
-    "Frankfurt":  (50.1109, 8.6821),
-    "Wiesbaden":  (50.0782, 8.2398),
-    "Kassel":     (51.3127, 9.4797),
-    "Stuttgart":  (48.7758, 9.1829),
-    "München":    (48.1351, 11.5820),
-    "Hamburg":    (53.5511, 9.9937),
-    "Berlin":     (52.5200, 13.4050),
-    "Köln":       (50.9375, 6.9603),
-    "Düsseldorf": (51.2277, 6.7735),
-    "Essen":      (51.4556, 7.0116),
-    "Hannover":   (52.3759, 9.7320),
-}
-
-# Diesel ban treatment periods
-BAN_INFO = {
-    "Darmstadt":  {"ban": True,    "start": "2019-06-01", "end": None},
-    "Stuttgart":  {"ban": True,    "start": "2019-01-01", "end": None},
-    "München":    {"ban": True,    "start": "2023-02-01", "end": None},
-    "Hamburg":    {"ban": "lifted", "start": "2018-06-01", "end": "2023-09-13"},
-    "Berlin":     {"ban": "lifted", "start": "2019-11-01", "end": "2022-01-01"},
-    "Frankfurt":  {"ban": False},
-    "Wiesbaden":  {"ban": False},
-    "Kassel":     {"ban": False},
-    "Köln":       {"ban": False},
-    "Düsseldorf": {"ban": False},
-    "Essen":      {"ban": False},
-    "Hannover":   {"ban": False},
+# Diesel ban treatment periods (only cities that actually had bans)
+DIESEL_BAN = {
+    "Darmstadt":  {"start": "2019-06-01", "end": None},
+    "Stuttgart":  {"start": "2019-01-01", "end": None},
+    "München":    {"start": "2023-02-01", "end": None},
+    "Hamburg":    {"start": "2018-06-01", "end": "2023-09-13"},
+    "Berlin":     {"start": "2019-11-01", "end": "2022-01-01"},
 }
 
 N_FOURIER = 3
@@ -86,87 +64,202 @@ NW_MAXLAGS = 15
 #  DATA FETCHING
 # ======================================================================
 
-def load_registry():
+def _get_ban_info(city):
+    """Check if a city has/had a diesel ban. Returns dict or None."""
+    for ban_city, info in DIESEL_BAN.items():
+        if ban_city.lower() in city.lower() or city.lower() in ban_city.lower():
+            return info
+    return None
+
+
+def load_city_stations():
+    """
+    Load city list + coordinates. Uses annual_all_cities.csv (from script 06)
+    to determine which cities to include. Falls back to germany_stations.json.
+    Returns dict: {city_name: (lat, lon)}, {city_name: [station_codes]}
+    """
+    ANNUAL_CACHE = Path(__file__).parent.parent / "data" / "annual_all_cities.csv"
+
+    # Determine which cities to include
+    target_cities = None
+    if ANNUAL_CACHE.exists():
+        annual = pd.read_csv(ANNUAL_CACHE)
+        target_cities = set(annual["city"].unique())
+        print(f"  Using {len(target_cities)} cities from annual panel cache")
+
+    # Try the full national station cache from script 06
+    if STATIONS_CACHE.exists():
+        print(f"  Loading station list from {STATIONS_CACHE}")
+        with open(STATIONS_CACHE) as f:
+            all_stations = json.load(f)
+
+        city_coords = {}
+        city_codes = {}
+        for sid, info in all_stations.items():
+            city = info.get("city", "").strip()
+            if not city:
+                continue
+            # Filter to target cities if available
+            if target_cities and city not in target_cities:
+                continue
+            lat, lon = info.get("lat"), info.get("lon")
+            if lat and lon and city not in city_coords:
+                city_coords[city] = (float(lat), float(lon))
+            if city not in city_codes:
+                city_codes[city] = []
+            code = info.get("code", "")
+            if code:
+                city_codes[city].append(code)
+
+        print(f"  Filtered to {len(city_coords)} cities with coordinates")
+        return city_coords, city_codes
+
+    # Fallback: germany_stations.json (12 cities)
+    print(f"  all_stations.json not found, falling back to {REGISTRY_FILE}")
+    print(f"  (Run script 06 first for full national coverage)")
     with open(REGISTRY_FILE, encoding="utf-8") as f:
         data = json.load(f)
-    return {k: v for k, v in data.items() if not k.startswith("_")}
+    registry = {k: v for k, v in data.items() if not k.startswith("_")}
+
+    # Hardcoded coords for the 12 original cities
+    fallback_coords = {
+        "Darmstadt":(49.87,8.65),"Frankfurt":(50.11,8.68),
+        "Wiesbaden":(50.08,8.24),"Kassel":(51.31,9.48),
+        "Stuttgart":(48.78,9.18),"München":(48.14,11.58),
+        "Hamburg":(53.55,9.99),"Berlin":(52.52,13.41),
+        "Köln":(50.94,6.96),"Düsseldorf":(51.23,6.77),
+        "Essen":(51.46,7.01),"Hannover":(52.38,9.73),
+    }
+
+    city_codes = {}
+    for code, info in registry.items():
+        city = info["city"]
+        if city not in city_codes:
+            city_codes[city] = []
+        city_codes[city].append(code)
+
+    city_coords = {c: fallback_coords[c] for c in city_codes if c in fallback_coords}
+    return city_coords, city_codes
 
 
 def build_panel():
     """
     Build the full panel dataset: daily NO2 + weather for each city.
+    Uses all_stations.json (from script 06) for national coverage.
     Caches to CSV after first fetch.
     """
     if CACHE_FILE.exists():
         print(f"\n  Loading cached panel data from {CACHE_FILE}")
         df = pd.read_csv(CACHE_FILE, parse_dates=["date"])
         cached_cities = sorted(df['city'].unique())
-        print(f"  {len(df)} rows, {len(cached_cities)} cities: {cached_cities}")
+        print(f"  {len(df)} rows, {len(cached_cities)} cities")
 
-        # Validate cache has enough cities (not just Hessen)
-        expected_cities = set(CITY_COORDS.keys())
-        if len(set(cached_cities) & expected_cities) >= 6:
-            return df
-        else:
-            print(f"  WARNING: Cache only has {len(cached_cities)} cities, "
-                  f"expected {len(expected_cities)}. Re-fetching...")
+        # If we have all_stations.json and cache has far fewer cities, re-fetch
+        if STATIONS_CACHE.exists() and len(cached_cities) < 15:
+            print(f"  WARNING: Cache has only {len(cached_cities)} cities "
+                  f"but full station list available. Re-fetching...")
             CACHE_FILE.unlink()
+        else:
+            return df
 
     print("\n" + "=" * 70)
-    print("  BUILDING PANEL DATASET (first run — will cache)")
+    print("  BUILDING PANEL DATASET (first run — will take a while)")
     print("=" * 70)
 
-    registry = load_registry()
-    print(f"  Registry: {len(registry)} stations")
-    # Group stations by city
-    city_stations = {}
-    for code, info in registry.items():
-        city = info["city"]
-        if city not in city_stations:
-            city_stations[city] = []
-        city_stations[city].append(code)
+    city_coords, city_codes = load_city_stations()
+    print(f"  {len(city_coords)} cities with coordinates")
+    print(f"  {sum(len(v) for v in city_codes.values())} total station codes")
+
+    # We'll query the UBA API directly by station code
+    api = HessenAirAPI.__new__(HessenAirAPI)
+    api.BASE_URL = "https://luftdaten.umweltbundesamt.de/api-proxy"
+    api.COMPONENTS = {"NO2": 5}
+    api.SCOPES = {"1SMW": 2}
 
     all_frames = []
+    failed_cities = []
 
-    for city, codes in city_stations.items():
-        if city not in CITY_COORDS:
+    for i, (city, codes) in enumerate(sorted(city_codes.items())):
+        if city not in city_coords:
             continue
 
-        print(f"\n  --- {city} ({len(codes)} stations) ---")
+        print(f"\n  [{i+1}/{len(city_codes)}] {city} "
+              f"({len(codes)} station(s))...")
 
-        # Fetch NO2 hourly for this city's stations
+        # Try fetching NO2 for this city using its station codes
         city_records = []
-        for code in codes:
-            print(f"    Fetching NO2 for {code}...")
+        for code in codes[:3]:  # Try up to 3 stations per city
             try:
-                # Use germany registry so all cities are searchable
-                fetcher = HessenAirAPI(stations_file=REGISTRY_FILE)
-                df_hourly = fetcher.get_api_data(
-                    pollutant="NO2", city=city,
-                    start_date="2016-01-01",
-                    scope="1SMW", chunk_days=365,
-                )
-                if not df_hourly.empty:
-                    city_records.append(df_hourly)
-                break  # One successful fetch per city is enough
+                params = {
+                    "date_from": "2016-01-01",
+                    "date_to": pd.Timestamp.now().strftime("%Y-%m-%d"),
+                    "time_from": 1, "time_to": 24,
+                    "station": code,
+                    "component": 5,  # NO2
+                    "scope": 2,      # 1SMW (hourly)
+                }
+
+                # Fetch in yearly chunks to avoid timeouts
+                from datetime import datetime, timedelta
+                dt_start = datetime(2016, 1, 1)
+                dt_end = datetime.now()
+                cursor = dt_start
+                chunk_records = []
+
+                while cursor < dt_end:
+                    chunk_end = min(cursor + timedelta(days=365), dt_end)
+                    p = {
+                        "date_from": cursor.strftime("%Y-%m-%d"),
+                        "date_to": chunk_end.strftime("%Y-%m-%d"),
+                        "time_from": 1, "time_to": 24,
+                        "station": code, "component": 5, "scope": 2,
+                    }
+                    res = api._get_json(f"{api.BASE_URL}/measures/json",
+                                         params=p)
+                    data = res.get("data", {})
+                    if isinstance(data, dict):
+                        for nid, timestamps in data.items():
+                            if isinstance(timestamps, dict):
+                                for ts, arr in timestamps.items():
+                                    if (isinstance(arr, (list,tuple))
+                                            and len(arr) > 2
+                                            and arr[2] is not None):
+                                        try:
+                                            chunk_records.append({
+                                                "timestamp": ts,
+                                                "value": float(arr[2]),
+                                            })
+                                        except (ValueError, TypeError):
+                                            pass
+                    cursor = chunk_end + timedelta(days=1)
+
+                if chunk_records:
+                    city_records.extend(chunk_records)
+                    print(f"    {code}: {len(chunk_records)} hourly records")
+                    break  # Got data from this station, no need to try more
+
             except Exception as e:
-                print(f"    Failed: {e}")
+                print(f"    {code}: failed ({e})")
 
         if not city_records:
-            print(f"    No NO2 data for {city}, skipping.")
+            print(f"    No NO2 data, skipping.")
+            failed_cities.append(city)
             continue
 
-        df_city = pd.concat(city_records, ignore_index=True)
-        # Average across stations to get one daily value per city
-        daily_no2 = (df_city.groupby(df_city["timestamp"].dt.date)["value"]
-                     .mean().reset_index())
-        daily_no2.columns = ["date", "no2"]
-        daily_no2["date"] = pd.to_datetime(daily_no2["date"])
-        daily_no2["city"] = city
+        # Aggregate to daily
+        df_hr = pd.DataFrame(city_records)
+        df_hr["timestamp"] = pd.to_datetime(df_hr["timestamp"],
+                                             errors="coerce")
+        df_hr = df_hr.dropna(subset=["timestamp", "value"])
+        daily = (df_hr.groupby(df_hr["timestamp"].dt.date)["value"]
+                 .mean().reset_index())
+        daily.columns = ["date", "no2"]
+        daily["date"] = pd.to_datetime(daily["date"])
+        daily["city"] = city
 
-        # Fetch weather for this city
-        lat, lon = CITY_COORDS[city]
-        print(f"    Fetching weather ({lat:.2f}, {lon:.2f})…")
+        # Fetch weather
+        lat, lon = city_coords[city]
+        print(f"    Fetching weather ({lat:.2f}, {lon:.2f})...")
         try:
             weather = fetch_dwd_weather(
                 lat=lat, lon=lon,
@@ -174,22 +267,25 @@ def build_panel():
                 chunk_months=6,
             )
             if not weather.empty:
-                daily_no2 = daily_no2.merge(weather, on="date", how="left")
+                daily = daily.merge(weather, on="date", how="left")
         except Exception as e:
             print(f"    Weather failed: {e}")
 
-        all_frames.append(daily_no2)
-        print(f"    → {len(daily_no2)} daily records")
+        all_frames.append(daily)
+        print(f"    -> {len(daily)} daily records")
 
     if not all_frames:
         raise SystemExit("No data for any city.")
 
+    if failed_cities:
+        print(f"\n  Failed cities ({len(failed_cities)}): {failed_cities}")
+
     panel = pd.concat(all_frames, ignore_index=True)
     panel = panel.sort_values(["city", "date"]).reset_index(drop=True)
 
-    # Cache
     panel.to_csv(CACHE_FILE, index=False)
-    print(f"\n  Cached to {CACHE_FILE}: {len(panel)} rows")
+    print(f"\n  Cached to {CACHE_FILE}: {len(panel)} rows, "
+          f"{panel['city'].nunique()} cities")
     return panel
 
 
@@ -218,20 +314,24 @@ def add_features(df):
 
     # Treatment variable: ban_active
     df["ban_active"] = 0
-    for city, info in BAN_INFO.items():
-        if not info.get("ban"):
+    for city in df["city"].unique():
+        info = _get_ban_info(city)
+        if not info:
             continue
         start = pd.Timestamp(info["start"])
-        end = pd.Timestamp(info.get("end")) if info.get("end") else df["date"].max()
+        end = pd.Timestamp(info["end"]) if info.get("end") else df["date"].max()
         mask = (df["city"] == city) & (df["date"] >= start) & (df["date"] <= end)
         df.loc[mask, "ban_active"] = 1
 
     # Group labels
-    df["group"] = df["city"].map(
-        lambda c: "Diesel ban" if BAN_INFO.get(c, {}).get("ban") == True
-        else ("Ban lifted" if BAN_INFO.get(c, {}).get("ban") == "lifted"
-              else "No ban")
-    )
+    def _group(city):
+        info = _get_ban_info(city)
+        if not info:
+            return "No ban"
+        if info.get("end"):
+            return "Ban lifted"
+        return "Diesel ban"
+    df["group"] = df["city"].map(_group)
 
     return df
 
@@ -299,11 +399,12 @@ def per_city_arx(df):
             print(f"  {city}: model failed — {e}")
 
     residuals = pd.concat(residual_frames, ignore_index=True)
-    residuals["group"] = residuals["city"].map(
-        lambda c: "Diesel ban" if BAN_INFO.get(c, {}).get("ban") == True
-        else ("Ban lifted" if BAN_INFO.get(c, {}).get("ban") == "lifted"
-              else "No ban")
-    )
+    def _group(city):
+        info = _get_ban_info(city)
+        if not info: return "No ban"
+        if info.get("end"): return "Ban lifted"
+        return "Diesel ban"
+    residuals["group"] = residuals["city"].map(_group)
 
     return residuals, city_results
 
@@ -513,10 +614,10 @@ def plot_panel_results(results, model):
         ban_colors = []
         for _, row in fe_rows.iterrows():
             city = row["city"]
-            ban = BAN_INFO.get(city, {}).get("ban", False)
-            if ban == True:
+            info = _get_ban_info(city)
+            if info and not info.get("end"):
                 ban_colors.append("#e74c3c")
-            elif ban == "lifted":
+            elif info and info.get("end"):
                 ban_colors.append("#f39c12")
             else:
                 ban_colors.append("#3498db")
@@ -580,9 +681,14 @@ if __name__ == "__main__":
     print("  PER-CITY MODEL FIT (Option A)")
     print("=" * 70)
     for city, info in sorted(city_r2.items()):
-        ban = BAN_INFO.get(city, {}).get("ban", False)
-        label = "BAN" if ban == True else ("LIFTED" if ban == "lifted" else "    ")
-        print(f"  {label}  {city:<15}  R²={info['r2']:.3f}  n={info['n']}")
+        bi = _get_ban_info(city)
+        if bi and not bi.get("end"):
+            label = "BAN"
+        elif bi and bi.get("end"):
+            label = "LFT"
+        else:
+            label = "   "
+        print(f"  {label}  {city:<20}  R²={info['r2']:.3f}  n={info['n']}")
 
     print("\n" + "=" * 70)
     print("  DONE:")
